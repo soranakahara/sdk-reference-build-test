@@ -1,49 +1,33 @@
 # SDK reference build experiment
 
-A personal experiment that generates HTML API references from three pinned
-public SDKs. It uses their existing documentation configurations and dependency
-versions. The files are downloadable GitHub Actions artifacts, not a published
-website or an official SDK release.
+A personal experiment that generates HTML API references from three public SDKs.
+Sources are pinned by HTTPS Git submodule gitlinks. Their tracked source,
+dependency versions, templates, and documentation configurations are unchanged.
 
-The three-job [verification run](https://github.com/soranakahara/sdk-reference-build-test/actions/runs/45308465230)
-succeeded. See [results and retained limitations](docs/results-2026-11-24.md).
+Run **Build SDK references** manually from the Actions tab. It always runs three
+independent jobs and retains these artifacts for **7 days**:
 
-| SDK | Source | Pinned revision |
+| SDK source | Hosted toolchain | Artifact |
 | --- | --- | --- |
-| Swift | [line-sdk-ios-swift](https://github.com/line/line-sdk-ios-swift) | `230d05aab8ae48b6eeb893b9f257d7f5095d3352` |
-| Android | [line-sdk-android](https://github.com/line/line-sdk-android) | `f18f8e27ff192d7a1a4ceaa379526b975f928838` |
-| Unity | [line-sdk-unity](https://github.com/line/line-sdk-unity) | `b7925f2f5f4fab974422d5b6a5140f9b8e45c9a6` |
+| [Swift](https://github.com/line/line-sdk-ios-swift) | macOS 15 arm64, Xcode 16.4, Ruby 3.3.8, Bundler 4.0.10, SDK-locked Jazzy | `swift-reference` |
+| [Android](https://github.com/line/line-sdk-android) | Ubuntu 24.04, Temurin 11.0.33.1+1, Android API 33 / Build Tools 30.0.3, SDK Gradle and Doclava | `android-reference` |
+| [Unity](https://github.com/line/line-sdk-unity) | Ubuntu 24.04, Ubuntu Doxygen | `unity-reference` |
 
-The SDKs are HTTPS Git submodules under `sdk/`. Their tracked source, dependency
-versions, templates, and configuration files are unchanged. Input checksums are
-recorded in [sources.lock.json](sources.lock.json).
+The implementation is one [workflow](.github/workflows/references.yml) and two helpers:
 
-Run **Build SDK references** manually from the Actions tab. Choose `all` (the
-default) for all three independent jobs, or select one SDK for a focused rerun:
+- [prepare_swift_bundle.py](scripts/prepare_swift_bundle.py) copies the bundle definition and adds only the runner's Ruby platform. Locked gem versions stay unchanged.
+- [android-javadoc.init.gradle](scripts/android-javadoc.init.gradle) supplies the compiled SDK/dependency classpath and enables failure on Javadoc errors.
 
-| Job | Hosted environment and generator | Artifact |
-| --- | --- | --- |
-| Swift | macOS 15 arm64, Xcode 16.4, Ruby 3.3.8, Bundler 4.0.10, locked SDK gems; invoke Jazzy directly | `swift-reference` |
-| Android | Ubuntu 24.04, Temurin 11.0.33.1+1, Android API 33 / Build Tools 30.0.3, SDK Gradle 7.6 / AGP 7.3.1 / Doclava 1.0.6 | `android-reference` |
-| Unity | Ubuntu 24.04, Ubuntu Doxygen, SDK Doxyfile; no Unity Editor or Graphviz | `unity-reference` |
+Each job logs the source SHA and major tool versions, checks a nonempty index and
+representative API pages, and uploads the generator's default output directory.
+There are no metadata bundles, package inventories, or general link/CSS scanners.
 
-Artifacts are retained for **7 days**. Each includes HTML, generation logs,
-validation results, source revisions, and actual tool/dependency versions under
-`metadata/`. Required API pages and local asset references are checked before
-upload; an empty output is an error. The verifier also works offline:
+The workflow uses `workflow_dispatch`, `contents: read`, immutable action SHAs,
+no persistent checkout credentials, and no shared cache. It does not deploy,
+push, schedule jobs, or use application secrets.
 
-```sh
-python3 scripts/validate_html.py swift artifacts/swift
-```
-
-The workflow has only a manual trigger, `contents: read`, no persistent checkout
-credentials, no shared dependency cache, and no publish/deploy/push step. It uses
-public input only and no application secrets. Runner images and Ubuntu package
-repositories change, so actual versions are captured for each run.
-
-**Known dependency vulnerabilities are accepted for this bounded experiment.**
-They have not been fixed here. See [risk and execution notes](docs/risk-notes.md)
-for conditions, limits, bundled dependencies, and the temporary Swift platform
-adjustment, which preserves every locked gem version. Installation authorization
-covers the listed hosted-runner setup. It does not authorize local installations,
-trust changes, deployment, schedules, upstream contributions, or notifications.
+Known dependency issues are accepted for this bounded hosted-runner experiment;
+they are not fixed here. See [risk notes](docs/risk-notes.md) and the
+[earlier detailed verification](docs/results-2026-11-24.md) for retained limitations.
+Local tool installation, trust changes, deployment, upstream contributions, and
+notifications are outside the authorized scope.

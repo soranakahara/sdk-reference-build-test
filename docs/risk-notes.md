@@ -1,69 +1,46 @@
 # Risk and execution notes
 
-This personal experiment intentionally uses pinned SDK dependency versions with
-known issues, with explicit approval for disposable hosted-runner execution. It
-does not claim that the tools are secure, fixed, or fully audited. No security or
-compatibility patch is applied to Jazzy, CocoaPods-Core, Doclava, Guava, or GD.
+This personal experiment has approval to use the pinned SDK dependencies with
+known issues on disposable GitHub-hosted runners. It does not claim that the
+tools are secure, fixed, or fully audited. No security patch is applied to Jazzy,
+CocoaPods-Core, Doclava, embedded Guava, or Doxygen/GD.
 
-## Authorized installation scope
+## Installation scope
 
-| Component | Public distributor and method | Destination |
+| Component | Public source and method | Hosted destination |
 | --- | --- | --- |
-| Ruby 3.3.8 / Bundler 4.0.10 | Pinned `ruby/setup-ruby` action; Ruby builds and RubyGems | macOS hosted runner's tool cache |
-| Swift gems | RubyGems, `bundle install` with the SDK's locked gem versions | `$RUNNER_TEMP/sdk-reference/gems`, without a shared cache |
-| Xcode 16.4 | Select the preinstalled macOS runner application | No installation |
-| Temurin JDK 11.0.33.1+1 | Exact Eclipse Adoptium archive, SHA-256 verified before extraction | `$RUNNER_TEMP/sdk-reference/jdk` on the Ubuntu runner |
-| Android API 33 / Build Tools 30.0.3 | Preinstalled Google's `sdkmanager`; install missing packages from Google | Hosted runner's Android SDK directory |
-| Gradle 7.6 and declared dependencies | SDK wrapper, official Gradle distribution, Google Maven and Maven Central | `$RUNNER_TEMP/sdk-reference/gradle` |
-| Doxygen | Ubuntu official apt repositories, `apt-get install --no-install-recommends doxygen` | Disposable Ubuntu hosted runner's package directories |
-| Checkout and artifact actions | GitHub, immutable action commits recorded in the workflow | Hosted runner's action directory |
+| Ruby 3.3.8 / Bundler 4.0.10 | Pinned `ruby/setup-ruby`; Ruby builds and RubyGems | macOS runner tool cache |
+| Swift gems | RubyGems, frozen SDK bundle | `$RUNNER_TEMP/sdk-reference/gems` |
+| Xcode 16.4 | Select the preinstalled application | No installation |
+| Temurin 11.0.33.1+1 | Adoptium archive with SHA-256 verification | `$RUNNER_TEMP/sdk-reference/jdk` |
+| Android API 33 / Build Tools 30.0.3 | Preinstalled Google `sdkmanager` | Runner Android SDK directory |
+| SDK Gradle and dependencies | Official wrapper, Google Maven and Maven Central | `$RUNNER_TEMP/sdk-reference/gradle` |
+| Doxygen | Ubuntu official apt repositories | Disposable Ubuntu package directories |
+| Checkout / artifact actions | GitHub, pinned commits | Runner action directory |
 
-No local tool installation is needed. No environment-variable dump or complete
-Git configuration is recorded. Metadata records only selected runner/run
-identifiers, versions, dependency reports, and public input hashes.
+The jobs use public input, `contents: read`, no application secrets, no persistent
+checkout credentials, and no shared cache. Local installations, trust changes,
+deployment, schedules, notifications, and upstream changes are not authorized.
 
-Swift's Gemfile, lock, and Pluginfile are copied into a temporary bundle
-directory. The runner Ruby's platform can be added to that lock's PLATFORMS
-section; the script verifies all other bytes remain unchanged. Installation is
-then frozen. Both original and effective lock hashes and the adjustment are
-recorded, and the tracked SDK files are unchanged.
+## Build adjustments and limits
 
-## Known issues and relevance to this run
+Swift copies Gemfile, Gemfile.lock, and Pluginfile into a temporary directory.
+Only the lock's PLATFORMS section is adjusted; installation is frozen. Jazzy runs
+directly with the original configuration/theme/copyright, avoiding fastlane hooks.
+Android's parent init script supplies the compiled release classpath and sets
+`failOnError=true`. Unity uses its original Doxyfile; no Editor or Graphviz is used.
+Tracked SDK files are checked for changes after generation.
 
-- **Ruby 3.3.8** predates the Ruby project's November 2026 security fixes. Source parsing, strings, and regular expressions remain attack surfaces. Pinned public inputs limit variability but do not repair the runtime.
-- **ActiveSupport 7.2.3.1**, **Addressable 2.9.0**, **JSON 2.21.1**, **Mustache 1.1.2**, **Rubyzip 2.4.1**, and **SQLite3 gem 1.7.3** in the Swift lockfile match published advisories. Records include [GHSA-8474-xrp6-wh69](https://github.com/advisories/GHSA-8474-xrp6-wh69), [GHSA-5hrj-7fc3-cmx9](https://github.com/advisories/GHSA-5hrj-7fc3-cmx9), and [GHSA-28hh-pr2h-2w89](https://github.com/advisories/GHSA-28hh-pr2h-2w89). Jazzy uses the fixed SDK theme and a local docset index; this is not proof that every vulnerable path is unreachable. All locked gems are installed, although fastlane is not invoked.
-- **Gradle 7.6** has known issues, and plugin/dependency downloads introduce supply-chain exposure. The workflow uses the original wrapper and public dependency definitions; it does not eliminate those risks.
-- **Doclava 1.0.6** embeds **JSilver 1.0.0** and **Guava r06**. Guava matches [GHSA-5mg8-w23w-74h3](https://github.com/advisories/GHSA-5mg8-w23w-74h3), concerning permissions on temporary directories. Static inspection found no `createTempDir` reference in non-Guava classes in this JAR. The original JAR is used without repackaging; a no-match result for Doclava would not clear its embedded code.
-- **Doxygen's bundled GD** has a known issue tracked as [CVE-2018-14553](https://www.cve.org/CVERecord?id=CVE-2018-14553). C# input and `HAVE_DOT=NO` do not remove the library or prove the affected functions unreachable. This experiment applies no GD backport and does not independently verify a fix in the selected Ubuntu package; its exact version is recorded with the output.
+Source SHAs and major tool versions go to CI logs. Before upload, each job checks
+its index and representative API pages with `test -s`. The workflow does not
+perform a full dependency audit or general link/asset/anchor validation.
 
-These observations are specific to this public-input documentation run. They are
-not a complete reachability proof, full dependency audit, or guarantee against
-unknown vulnerabilities. Dependency reports and package inventories accompany
-the HTML for later assessment.
+Known issues include the old Ruby/gem graph, Gradle 7.6, Guava r06 embedded in
+Doclava ([GHSA-5mg8-w23w-74h3](https://github.com/advisories/GHSA-5mg8-w23w-74h3)),
+and Doxygen's bundled GD issue ([CVE-2018-14553](https://www.cve.org/CVERecord?id=CVE-2018-14553)).
+Fixed public inputs and disabled optional features do not prove these paths
+unreachable. No independent security-fix verification is claimed.
 
-## Isolation and output checks
-
-The independent jobs use GitHub-hosted runners with `contents: read`, no
-persistent checkout credentials, no shared cache, no application secrets, and no
-deployment or repository-write operation. Installing/running tools still
-executes third-party code on those runners. This is the accepted boundary.
-
-Swift invokes Jazzy directly, preserving `.jazzy.yaml`, the theme, and copyright
-meaning while avoiding fastlane's `before_all` and release actions. Android
-uses Doclava and the SDK templates, including `@hide`. Unity uses the original
-Doxyfile with only an external output-directory override.
-
-The parent Android init script compiles the release SDK and supplies that
-output and its existing dependency classpath to Javadoc. The stock task omits
-these types and can return success after parser errors. The parent enables
-`failOnError` and also checks the log for errors, without changing SDK files or
-dependency versions. The public source filters and Doclava options are preserved.
-
-The validator checks a nonempty index, representative API pages and symbols,
-local scripts/styles/images, and reports navigation-link and fragment failures
-separately. Existing empty JavaScript/CSS files are valid resources. Optional
-favicons and CSS image URLs are reported separately from missing API pages,
-scripts, and stylesheet files; browser inspection checks the resources actually
-used by representative pages. A directory alone is never success. Templates can contain
-external links and analytics; the offline validator reports these without
-fetching them. Browser inspection uses local copies with external requests blocked.
+The [earlier detailed run](results-2026-11-24.md) records existing Android header
+background/favicon omissions, an unused CSS image reference, Swift fragment
+link omissions, and site-root `/en/` links. These limitations are retained.

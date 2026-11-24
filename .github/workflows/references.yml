@@ -2,26 +2,12 @@ name: Build SDK references
 
 on:
   workflow_dispatch:
-    inputs:
-      sdk:
-        description: SDK to generate
-        type: choice
-        default: all
-        options:
-          - all
-          - swift
-          - android
-          - unity
 
 permissions:
   contents: read
 
-env:
-  PYTHONDONTWRITEBYTECODE: '1'
-
 jobs:
   swift:
-    if: inputs.sdk == 'all' || inputs.sdk == 'swift'
     runs-on: macos-15
     timeout-minutes: 40
     env:
@@ -40,20 +26,32 @@ jobs:
           bundler: '4.0.10'
           bundler-cache: false
       - name: Generate Swift reference
-        run: bash scripts/build_swift.sh
-      - name: Validate and record provenance
+        working-directory: sdk/swift
         run: |
-          python3 scripts/validate_html.py swift artifacts/swift
-          python3 scripts/record_build.py swift
+          git rev-parse HEAD
+          bundle_root="$RUNNER_TEMP/sdk-reference/swift"
+          python3 "$GITHUB_WORKSPACE/scripts/prepare_swift_bundle.py" . "$bundle_root" "$(ruby -e 'print Gem::Platform.local')"
+          export BUNDLE_GEMFILE="$bundle_root/Gemfile"
+          export BUNDLE_PATH="$RUNNER_TEMP/sdk-reference/gems"
+          bundle install --jobs 4 --retry 3
+          xcodebuild -version
+          ruby --version
+          bundle --version
+          bundle exec jazzy --version
+          bundle exec jazzy --copyright "© $(date +%Y) [LY Corporation.](https://line.me) All rights reserved."
+          test -s docs/public/index.html
+          test -s docs/public/Classes/LoginManager.html
+          test -s docs/public/Structs/AccessToken.html
+          test -s docs/public/search.json
+          git diff --exit-code
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: swift-reference
-          path: artifacts/swift/
+          path: sdk/swift/docs/public/
           retention-days: 7
           if-no-files-found: error
 
   android:
-    if: inputs.sdk == 'all' || inputs.sdk == 'android'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -63,22 +61,38 @@ jobs:
       - name: Check out pinned Android source
         run: git submodule update --init --depth 1 sdk/android
       - name: Prepare Android SDK and JDK
-        run: bash scripts/setup_android.sh
-      - name: Generate Android reference
-        run: bash scripts/build_android.sh
-      - name: Validate and record provenance
         run: |
-          python3 scripts/validate_html.py android artifacts/android
-          python3 scripts/record_build.py android
+          tools="$RUNNER_TEMP/sdk-reference"
+          mkdir -p "$tools/jdk"
+          python3 -c 'print("y\n" * 100)' > "$tools/licenses"
+          manager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$manager" --licenses < "$tools/licenses" > /dev/null
+          "$manager" 'platforms;android-33' 'build-tools;30.0.3'
+          curl --fail --location --retry 3 --proto '=https' 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jdk_x64_linux_hotspot_11.0.33.1_1.tar.gz' --output "$tools/jdk.tar.gz"
+          echo "3119b6dd17543e8e61fd0186f9325414bf2601270bf1edf8a314b9a51c5fb89d  $tools/jdk.tar.gz" | sha256sum --check
+          tar -xzf "$tools/jdk.tar.gz" -C "$tools/jdk" --strip-components=1
+          echo "JAVA_HOME=$tools/jdk" >> "$GITHUB_ENV"
+          echo "$tools/jdk/bin" >> "$GITHUB_PATH"
+      - name: Generate Android reference
+        working-directory: sdk/android
+        run: |
+          git rev-parse HEAD
+          java -version
+          export GRADLE_USER_HOME="$RUNNER_TEMP/sdk-reference/gradle"
+          ./gradlew --no-daemon --console=plain --version
+          ./gradlew --no-daemon --console=plain --init-script "$GITHUB_WORKSPACE/scripts/android-javadoc.init.gradle" :line-sdk:javadoc_public
+          test -s line-sdk/build/docs/javadoc_public/index.html
+          test -s line-sdk/build/docs/javadoc_public/reference/com/linecorp/linesdk/api/LineApiClient.html
+          test -s line-sdk/build/docs/javadoc_public/reference/com/linecorp/linesdk/widget/LoginButton.html
+          git diff --exit-code
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-reference
-          path: artifacts/android/
+          path: sdk/android/line-sdk/build/docs/javadoc_public/
           retention-days: 7
           if-no-files-found: error
 
   unity:
-    if: inputs.sdk == 'all' || inputs.sdk == 'unity'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -92,14 +106,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends doxygen
       - name: Generate Unity reference
-        run: bash scripts/build_unity.sh
-      - name: Validate and record provenance
+        working-directory: sdk/unity
         run: |
-          python3 scripts/validate_html.py unity artifacts/unity
-          python3 scripts/record_build.py unity
+          git rev-parse HEAD
+          doxygen --version
+          doxygen Doxyfile
+          test -s html/index.html
+          test -s html/class_line_1_1_line_s_d_k_1_1_line_s_d_k.html
+          test -s html/class_line_1_1_line_s_d_k_1_1_access_token.html
+          git diff --exit-code
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: unity-reference
-          path: artifacts/unity/
+          path: sdk/unity/html/
           retention-days: 7
           if-no-files-found: error
