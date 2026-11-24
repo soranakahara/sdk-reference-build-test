@@ -13,10 +13,13 @@ independent jobs and retains these artifacts for **7 days**:
 | [Android](https://github.com/line/line-sdk-android) | Ubuntu 24.04, Temurin 11.0.33.1+1, Android API 33 / Build Tools 30.0.3, SDK Gradle and Doclava | `android-reference` |
 | [Unity](https://github.com/line/line-sdk-unity) | Ubuntu 24.04, Ubuntu Doxygen | `unity-reference` |
 
-The implementation is one [workflow](.github/workflows/references.yml) and two helpers:
+The implementation is one [workflow](.github/workflows/references.yml) and one helper:
 
-- [prepare_swift_bundle.py](scripts/prepare_swift_bundle.py) copies the bundle definition and adds only the runner's Ruby platform. Locked gem versions stay unchanged.
 - [android-javadoc.init.gradle](scripts/android-javadoc.init.gradle) supplies the compiled SDK/dependency classpath and enables failure on Javadoc errors.
+
+Swift uses `bundle lock --add-platform` on a temporary bundle copy. Before the
+frozen install, Bundler's lockfile parser checks that gem names and versions are
+unchanged, allowing duplicate specs for different platforms.
 
 Each job logs the source SHA and major tool versions, checks a nonempty index and
 representative API pages, and uploads the generator's default output directory.

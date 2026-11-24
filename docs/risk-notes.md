@@ -25,7 +25,9 @@ deployment, schedules, notifications, and upstream changes are not authorized.
 ## Build adjustments and limits
 
 Swift copies Gemfile, Gemfile.lock, and Pluginfile into a temporary directory.
-Only the lock's PLATFORMS section is adjusted; installation is frozen. Jazzy runs
+`bundle lock --add-platform` adds the runner platform there. Before the frozen
+install, `Bundler::LockfileParser` compares unique gem name/version pairs, so
+platform-specific spec additions do not count as version changes. Jazzy runs
 directly with the original configuration/theme/copyright, avoiding fastlane hooks.
 Android's parent init script supplies the compiled release classpath and sets
 `failOnError=true`. Unity uses its original Doxyfile; no Editor or Graphviz is used.

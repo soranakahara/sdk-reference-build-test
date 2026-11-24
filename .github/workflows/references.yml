@@ -29,10 +29,20 @@ jobs:
         working-directory: sdk/swift
         run: |
           git rev-parse HEAD
+          # The SDK lock omits the prebuilt Ruby platform; adjust a temporary copy.
           bundle_root="$RUNNER_TEMP/sdk-reference/swift"
-          python3 "$GITHUB_WORKSPACE/scripts/prepare_swift_bundle.py" . "$bundle_root" "$(ruby -e 'print Gem::Platform.local')"
+          mkdir -p "$bundle_root/fastlane"
+          cp Gemfile Gemfile.lock "$bundle_root/"
+          cp fastlane/Pluginfile "$bundle_root/fastlane/"
           export BUNDLE_GEMFILE="$bundle_root/Gemfile"
           export BUNDLE_PATH="$RUNNER_TEMP/sdk-reference/gems"
+          bundle lock --add-platform "$(ruby -e 'print Gem::Platform.local')"
+          diff -u Gemfile.lock "${BUNDLE_GEMFILE}.lock" || test "$?" -eq 1
+          ruby -rbundler -e '
+            versions = ARGV.map { |path| Bundler::LockfileParser.new(File.read(path)).specs.map { |s| [s.name, s.version.to_s] }.uniq.sort }
+            abort "Locked gem versions changed" unless versions[0] == versions[1]
+            puts "Locked gem versions unchanged (#{versions[0].size} name/version pairs)"
+          ' Gemfile.lock "${BUNDLE_GEMFILE}.lock"
           bundle install --jobs 4 --retry 3
           xcodebuild -version
           ruby --version
