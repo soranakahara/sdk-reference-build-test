@@ -22,6 +22,10 @@ Each job logs the source SHA and major tool versions, checks a nonempty index an
 representative API pages, and uploads the generator's default output directory.
 There are no metadata bundles, package inventories, or general link/CSS scanners.
 
+The simplified workflow passed [run 45311731707](https://github.com/soranakahara/sdk-reference-build-test/actions/runs/45311731707):
+all three jobs and artifacts succeeded. All 145 site HTML files were byte-identical
+to the earlier verified run, and the search data was equivalent.
+
 The workflow uses `workflow_dispatch`, `contents: read`, immutable action SHAs,
 no persistent checkout credentials, and no shared cache. It does not deploy,
 push, schedule jobs, or use application secrets.
