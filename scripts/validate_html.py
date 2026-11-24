@@ -96,17 +96,34 @@ def validate(sdk, directory):
     for path, page in pages.items():
         for raw, asset in page.references:
             check(path, raw, asset)
-    for path in directory.rglob("*.css"):
-        if any(part.endswith(".docset") for part in path.parts):
-            continue
-        for raw in re.findall(r"url\(\s*['\"]?([^)'\"\s]+)", path.read_text(errors="replace")):
+    css = {
+        path: re.sub(r"/\*.*?\*/", "", path.read_text(errors="replace"), flags=re.S)
+        for path in directory.rglob("*.css")
+        if not any(part.endswith(".docset") for part in path.parts)
+    }
+    url_pattern = r"url\(\s*['\"]?([^)'\"\s]+)"
+    declaration_pattern = r"(--[\w-]+)\s*:\s*([^;{}]+);"
+    custom_urls = {}
+    for text in css.values():
+        for name, value in re.findall(declaration_pattern, text):
+            custom_urls.setdefault(name, set()).update(re.findall(url_pattern, value))
+    custom_url_checks = 0
+    for path, text in css.items():
+        # Doxygen defines URLs centrally; CSS variables resolve at their use site.
+        direct = re.sub(declaration_pattern, "", text)
+        for raw in re.findall(url_pattern, direct):
             check(path, raw, True)
+        for name in set(re.findall(r"var\(\s*(--[\w-]+)", direct)):
+            for raw in custom_urls.get(name, ()):
+                check(path, raw, True)
+                custom_url_checks += 1
     files = [p for p in directory.rglob("*") if p.is_file() and "metadata" not in p.relative_to(directory).parts]
     report = {
         "sdk": sdk, "site_html_count": len(site),
         "all_html_count": len(list(directory.rglob("*.html"))),
         "documentation_file_count": len(files), "documentation_bytes": sum(p.stat().st_size for p in files),
         "required_api_pages": required, "local_references_checked": reference_count,
+        "css_custom_property_url_checks": custom_url_checks,
         "missing_local_assets": sorted(missing_assets), "missing_local_files": sorted(missing_files),
         "missing_fragments": sorted(missing_fragments), "site_root_links": sorted(root_links),
         "external_urls_not_fetched": sorted(external),
