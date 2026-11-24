@@ -3,6 +3,8 @@ set -euo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true ]] || { echo 'Run on a hosted Actions runner.' >&2; exit 2; }
 
 output="$GITHUB_WORKSPACE/artifacts/swift"
+export BUNDLE_PATH="$RUNNER_TEMP/sdk-reference/gems"
+echo "BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
 metadata="$RUNNER_TEMP/sdk-reference/swift-metadata"
 mkdir -p "$metadata"
 cd "$GITHUB_WORKSPACE/sdk/swift"

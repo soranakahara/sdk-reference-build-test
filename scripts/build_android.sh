@@ -3,6 +3,7 @@ set -euo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true ]] || { echo 'Run on a hosted Actions runner.' >&2; exit 2; }
 
 output="$GITHUB_WORKSPACE/artifacts/android"
+export GRADLE_USER_HOME="$RUNNER_TEMP/sdk-reference/gradle"
 mkdir -p "$output/metadata"
 cd "$GITHUB_WORKSPACE/sdk/android"
 ./gradlew --no-daemon --console=plain --version > "$output/metadata/gradle.txt"
