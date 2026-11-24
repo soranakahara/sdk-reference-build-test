@@ -1,0 +1,195 @@
+{
+  "verification_date": "2026-11-24",
+  "repository": "https://github.com/soranakahara/sdk-reference-build-test",
+  "workflow": "https://github.com/soranakahara/sdk-reference-build-test/actions/workflows/references.yml",
+  "run_id": 45308465230,
+  "run_url": "https://github.com/soranakahara/sdk-reference-build-test/actions/runs/45308465230",
+  "event": "workflow_dispatch",
+  "conclusion": "success",
+  "build_commit": "a176551bf653791ff302f79e6db9ba7d6718760a",
+  "artifacts": [
+    {
+      "id": 14881404066,
+      "name": "swift-reference",
+      "size_in_bytes": 1033790,
+      "digest": "sha256:bba88905478397810e88da8679cb996a81ab5548edd52362aa7b491c0fdfd78c",
+      "created_at": "2026-11-24T01:59:10Z",
+      "expires_at": "2026-12-01T01:59:07Z",
+      "zip_sha256_verified": true,
+      "source_revision": "230d05aab8ae48b6eeb893b9f257d7f5095d3352",
+      "tool_versions": {
+        "ruby": "ruby 3.3.8 (2025-04-09 revision b200bad6cd) [arm64-darwin23]",
+        "bundler": "4.0.10",
+        "jazzy": "jazzy version: 0.15.4",
+        "xcode": "Xcode 16.4\nBuild version 16F6",
+        "swift": "swift-driver version: 1.120.5 Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)\nTarget: arm64-apple-macosx15.0"
+      },
+      "runner": {
+        "GITHUB_RUN_ID": "45308465230",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/main",
+        "RUNNER_OS": "macOS",
+        "RUNNER_ARCH": "ARM64",
+        "ImageOS": "macos15",
+        "ImageVersion": "20261118.0550.1"
+      },
+      "validation": {
+        "site_html_count": 65,
+        "all_html_count": 130,
+        "documentation_file_count": 172,
+        "documentation_bytes": 4597023,
+        "required_api_pages": [
+          "Classes/LoginManager.html",
+          "Enums/API.html",
+          "Structs/AccessToken.html",
+          "Structs/UserProfile.html"
+        ],
+        "local_references_checked": 5975,
+        "css_custom_property_url_checks": 0,
+        "missing_local_assets": [],
+        "missing_local_files": [],
+        "missing_css_assets": [],
+        "site_root_links": [
+          "/en/"
+        ],
+        "passed": true,
+        "missing_optional_icon_reference_count": 0
+      },
+      "missing_fragment_reference_count": 74
+    },
+    {
+      "id": 14882705215,
+      "name": "android-reference",
+      "size_in_bytes": 326824,
+      "digest": "sha256:a51a43cb7df6931cda27d23dc43913321b511dbdf0d4cf3b72bc264c5cbdaff7",
+      "created_at": "2026-11-24T01:56:50Z",
+      "expires_at": "2026-12-01T01:56:48Z",
+      "zip_sha256_verified": true,
+      "source_revision": "f18f8e27ff192d7a1a4ceaa379526b975f928838",
+      "tool_versions": {
+        "java": "openjdk version \"11.0.33.1\" 2026-11-17\nOpenJDK Runtime Environment Temurin-11.0.33.1+1 (build 11.0.33.1+1)\nOpenJDK 64-Bit Server VM Temurin-11.0.33.1+1 (build 11.0.33.1+1, mixed mode)"
+      },
+      "runner": {
+        "GITHUB_RUN_ID": "45308465230",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/main",
+        "RUNNER_OS": "Linux",
+        "RUNNER_ARCH": "X64",
+        "ImageOS": "ubuntu24",
+        "ImageVersion": "20261116.376.1"
+      },
+      "validation": {
+        "site_html_count": 35,
+        "all_html_count": 35,
+        "documentation_file_count": 81,
+        "documentation_bytes": 1388781,
+        "required_api_pages": [
+          "reference/com/linecorp/linesdk/api/LineApiClient.html",
+          "reference/com/linecorp/linesdk/auth/LineLoginApi.html",
+          "reference/com/linecorp/linesdk/auth/LineLoginResult.html",
+          "reference/com/linecorp/linesdk/LineAccessToken.html",
+          "reference/com/linecorp/linesdk/widget/LoginButton.html"
+        ],
+        "local_references_checked": 1596,
+        "css_custom_property_url_checks": 0,
+        "missing_local_assets": [],
+        "missing_local_files": [],
+        "missing_css_assets": [
+          [
+            "assets/doclava-developer-core.css",
+            "images/bg_community_leftDiv.jpg"
+          ],
+          [
+            "assets/doclava-developer-core.css",
+            "images/bg_images_sprite.png"
+          ]
+        ],
+        "site_root_links": [
+          "/en/"
+        ],
+        "passed": true,
+        "missing_optional_icon_reference_count": 33
+      },
+      "missing_fragment_reference_count": 0
+    },
+    {
+      "id": 14882915135,
+      "name": "unity-reference",
+      "size_in_bytes": 251723,
+      "digest": "sha256:58ac772257d57897235a4b4c0c0d6e3f0bafe24182be0bf937bc9b36ee7773f5",
+      "created_at": "2026-11-24T01:57:12Z",
+      "expires_at": "2026-12-01T01:57:10Z",
+      "zip_sha256_verified": true,
+      "source_revision": "b7925f2f5f4fab974422d5b6a5140f9b8e45c9a6",
+      "tool_versions": {
+        "doxygen": "1.9.8"
+      },
+      "runner": {
+        "GITHUB_RUN_ID": "45308465230",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/main",
+        "RUNNER_OS": "Linux",
+        "RUNNER_ARCH": "X64",
+        "ImageOS": "ubuntu24",
+        "ImageVersion": "20261116.133.1"
+      },
+      "validation": {
+        "site_html_count": 45,
+        "all_html_count": 45,
+        "documentation_file_count": 148,
+        "documentation_bytes": 696083,
+        "required_api_pages": [
+          "class_line_1_1_line_s_d_k_1_1_line_s_d_k.html",
+          "class_line_1_1_line_s_d_k_1_1_access_token.html",
+          "class_line_1_1_line_s_d_k_1_1_login_result.html",
+          "class_line_1_1_line_s_d_k_1_1_user_profile.html"
+        ],
+        "local_references_checked": 1056,
+        "css_custom_property_url_checks": 31,
+        "missing_local_assets": [],
+        "missing_local_files": [],
+        "missing_css_assets": [],
+        "site_root_links": [],
+        "passed": true,
+        "missing_optional_icon_reference_count": 0
+      },
+      "missing_fragment_reference_count": 0
+    }
+  ],
+  "browser": {
+    "version": "Chrome/158.0.8127.38",
+    "external_requests_blocked": true,
+    "javascript_exceptions": {
+      "swift": [],
+      "android": [],
+      "unity": []
+    },
+    "swift_search_suggestions": [
+      "AccessTokenStore"
+    ],
+    "swift_search_destination": "Classes/AccessTokenStore.html",
+    "android_public_method_and_hide": {
+      "getProfile": true,
+      "hidden_getFriends_visible": false
+    },
+    "android_css": {
+      "html_pages_scanned": 35,
+      "pages_matching_header_links": 33,
+      "header_link_matches": 66,
+      "community_selector_matches": 0,
+      "header_sprite_http_404_observed": true
+    },
+    "unity_navigation_tree_items": 18,
+    "unity_search_results_visible": true,
+    "dedicated_browser_closed": true,
+    "local_server_closed": true
+  },
+  "swift_comparison": {
+    "previous_public_run": "https://github.com/soranakahara/line-sdk-ios-swift/actions/runs/44246130059",
+    "previous_artifact_id": 14401713415,
+    "site_file_paths_equal": 85,
+    "html_files_byte_equal": 65,
+    "search_json_semantically_equal": true,
+    "diagnostic_workspace_paths_vary": true
+  }
+}

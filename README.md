@@ -5,6 +5,9 @@ public SDKs. It uses their existing documentation configurations and dependency
 versions. The files are downloadable GitHub Actions artifacts, not a published
 website or an official SDK release.
 
+The three-job [verification run](https://github.com/soranakahara/sdk-reference-build-test/actions/runs/45308465230)
+succeeded. See [results and retained limitations](docs/results-2026-11-24.md).
+
 | SDK | Source | Pinned revision |
 | --- | --- | --- |
 | Swift | [line-sdk-ios-swift](https://github.com/line/line-sdk-ios-swift) | `230d05aab8ae48b6eeb893b9f257d7f5095d3352` |
