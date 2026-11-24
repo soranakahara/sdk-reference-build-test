@@ -53,8 +53,17 @@ meaning while avoiding fastlane's `before_all` and release actions. Android
 uses Doclava and the SDK templates, including `@hide`. Unity uses the original
 Doxyfile with only an external output-directory override.
 
+The parent Android init script compiles the release SDK and supplies that
+output and its existing dependency classpath to Javadoc. The stock task omits
+these types and can return success after parser errors. The parent enables
+`failOnError` and also checks the log for errors, without changing SDK files or
+dependency versions. The public source filters and Doclava options are preserved.
+
 The validator checks a nonempty index, representative API pages and symbols,
 local scripts/styles/images, and reports navigation-link and fragment failures
-separately. A directory alone is never success. Existing templates can contain
+separately. Existing empty JavaScript/CSS files are valid resources. Optional
+favicons and CSS image URLs are reported separately from missing API pages,
+scripts, and stylesheet files; browser inspection checks the resources actually
+used by representative pages. A directory alone is never success. Templates can contain
 external links and analytics; the offline validator reports these without
 fetching them. Browser inspection uses local copies with external requests blocked.

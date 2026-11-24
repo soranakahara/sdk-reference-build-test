@@ -45,8 +45,9 @@ class Page(HTMLParser):
                 self.anchors.add(attrs[key])
         for key in ("href", "src"):
             if attrs.get(key):
-                asset = key == "src" or (tag == "link" and attrs.get("rel") in ("stylesheet", "icon"))
-                self.references.append((attrs[key], asset))
+                rel = set(attrs.get("rel", "").split())
+                kind = "icon" if tag == "link" and "icon" in rel else "asset" if key == "src" or (tag == "link" and "stylesheet" in rel) else "link"
+                self.references.append((attrs[key], kind))
 
 
 def validate(sdk, directory):
@@ -68,9 +69,10 @@ def validate(sdk, directory):
         raise ValueError("Unexpectedly small API site")
 
     missing_files, missing_assets, missing_fragments, root_links, external = set(), set(), set(), set(), set()
+    missing_css_assets, missing_icons = set(), set()
     reference_count = 0
 
-    def check(source, raw, asset):
+    def check(source, raw, kind):
         nonlocal reference_count
         url = urlsplit(raw)
         if url.scheme or url.netloc:
@@ -88,14 +90,14 @@ def validate(sdk, directory):
             return
         if target.is_dir():
             target /= "index.html"
-        if not target.is_file() or not target.stat().st_size:
-            (missing_assets if asset else missing_files).add(label)
+        if not target.is_file() or (not target.stat().st_size and target.suffix not in (".js", ".css")):
+            {"asset": missing_assets, "css": missing_css_assets, "icon": missing_icons, "link": missing_files}[kind].add(label)
         elif url.fragment and target in pages and unquote(url.fragment) not in pages[target].anchors:
             missing_fragments.add(label)
 
     for path, page in pages.items():
-        for raw, asset in page.references:
-            check(path, raw, asset)
+        for raw, kind in page.references:
+            check(path, raw, kind)
     css = {
         path: re.sub(r"/\*.*?\*/", "", path.read_text(errors="replace"), flags=re.S)
         for path in directory.rglob("*.css")
@@ -112,10 +114,10 @@ def validate(sdk, directory):
         # Doxygen defines URLs centrally; CSS variables resolve at their use site.
         direct = re.sub(declaration_pattern, "", text)
         for raw in re.findall(url_pattern, direct):
-            check(path, raw, True)
+            check(path, raw, "css")
         for name in set(re.findall(r"var\(\s*(--[\w-]+)", direct)):
             for raw in custom_urls.get(name, ()):
-                check(path, raw, True)
+                check(path, raw, "css")
                 custom_url_checks += 1
     files = [p for p in directory.rglob("*") if p.is_file() and "metadata" not in p.relative_to(directory).parts]
     report = {
@@ -125,6 +127,7 @@ def validate(sdk, directory):
         "required_api_pages": required, "local_references_checked": reference_count,
         "css_custom_property_url_checks": custom_url_checks,
         "missing_local_assets": sorted(missing_assets), "missing_local_files": sorted(missing_files),
+        "missing_css_assets": sorted(missing_css_assets), "missing_optional_icons": sorted(missing_icons),
         "missing_fragments": sorted(missing_fragments), "site_root_links": sorted(root_links),
         "external_urls_not_fetched": sorted(external),
         "passed": not missing_assets and not missing_files,

@@ -1,0 +1,14 @@
+import org.gradle.api.tasks.javadoc.Javadoc
+
+gradle.projectsEvaluated {
+    def sdk = gradle.rootProject.project(':line-sdk')
+    def release = sdk.android.libraryVariants.find { it.name == 'release' }
+    def compile = release.javaCompileProvider
+    sdk.tasks.named('javadoc_public', Javadoc).configure {
+        // The stock task omits SDK classes and transformed Android AAR dependencies.
+        dependsOn compile
+        classpath += compile.get().classpath
+        classpath += sdk.files(compile.flatMap { it.destinationDirectory })
+        failOnError = true
+    }
+}
