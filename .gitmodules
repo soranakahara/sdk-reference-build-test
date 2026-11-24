@@ -1,0 +1,9 @@
+[submodule "sdk/swift"]
+	path = sdk/swift
+	url = https://github.com/line/line-sdk-ios-swift.git
+[submodule "sdk/android"]
+	path = sdk/android
+	url = https://github.com/line/line-sdk-android.git
+[submodule "sdk/unity"]
+	path = sdk/unity
+	url = https://github.com/line/line-sdk-unity.git

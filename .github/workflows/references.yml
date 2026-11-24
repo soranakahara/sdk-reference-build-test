@@ -1,0 +1,95 @@
+name: Build SDK references
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  swift:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/sdk/swift/Gemfile
+      BUNDLE_PATH: ${{ runner.temp }}/sdk-reference/gems
+      BUNDLE_FROZEN: 'true'
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned Swift source
+        run: git submodule update --init --depth 1 sdk/swift
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1 snapshot
+        with:
+          ruby-version: '3.3.8'
+          bundler: '4.0.10'
+          bundler-cache: false
+      - name: Generate Swift reference
+        run: bash scripts/build_swift.sh
+      - name: Validate and record provenance
+        run: |
+          python3 scripts/validate_html.py swift artifacts/swift
+          python3 scripts/record_build.py swift
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: swift-reference
+          path: artifacts/swift/
+          retention-days: 7
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/sdk-reference/gradle
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned Android source
+        run: git submodule update --init --depth 1 sdk/android
+      - name: Prepare Android SDK and JDK
+        run: bash scripts/setup_android.sh
+      - name: Generate Android reference
+        run: bash scripts/build_android.sh
+      - name: Validate and record provenance
+        run: |
+          python3 scripts/validate_html.py android artifacts/android
+          python3 scripts/record_build.py android
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-reference
+          path: artifacts/android/
+          retention-days: 7
+          if-no-files-found: error
+
+  unity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned Unity source
+        run: git submodule update --init --depth 1 sdk/unity
+      - name: Install Ubuntu Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends doxygen
+      - name: Generate Unity reference
+        run: bash scripts/build_unity.sh
+      - name: Validate and record provenance
+        run: |
+          python3 scripts/validate_html.py unity artifacts/unity
+          python3 scripts/record_build.py unity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: unity-reference
+          path: artifacts/unity/
+          retention-days: 7
+          if-no-files-found: error
