@@ -5,8 +5,10 @@ set -euo pipefail
 tools="$RUNNER_TEMP/sdk-reference"
 mkdir -p "$tools/jdk"
 python3 -c 'print("y\n" * 100)' > "$tools/android-license-answers"
-sdkmanager --licenses < "$tools/android-license-answers" > "$tools/android-licenses.log"
-sdkmanager 'platforms;android-33' 'build-tools;30.0.3'
+manager="${ANDROID_HOME:?}/cmdline-tools/latest/bin/sdkmanager"
+[[ -x "$manager" ]]
+"$manager" --licenses < "$tools/android-license-answers" > "$tools/android-licenses.log"
+"$manager" 'platforms;android-33' 'build-tools;30.0.3'
 
 archive="$tools/temurin.tar.gz"
 curl --fail --location --retry 3 --proto '=https' 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jdk_x64_linux_hotspot_11.0.33.1_1.tar.gz' --output "$archive"

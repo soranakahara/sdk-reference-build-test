@@ -44,7 +44,7 @@ record = {
 if sdk == "android":
     record["android_sdk_packages"] = {
         name: (Path(os.environ["ANDROID_HOME"]) / name / "source.properties").read_text()
-        for name in ("platforms/android-33", "build-tools/30.0.3")
+        for name in ("platforms/android-33", "build-tools/30.0.3", "cmdline-tools/latest")
     }
 (metadata / "provenance.json").write_text(json.dumps(record, indent=2) + "\n")
 print(json.dumps(record, indent=2))

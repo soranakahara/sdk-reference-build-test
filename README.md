@@ -15,7 +15,8 @@ The SDKs are HTTPS Git submodules under `sdk/`. Their tracked source, dependency
 versions, templates, and configuration files are unchanged. Input checksums are
 recorded in [sources.lock.json](sources.lock.json).
 
-Run **Build SDK references** manually from the Actions tab. Its jobs are independent:
+Run **Build SDK references** manually from the Actions tab. Choose `all` (the
+default) for all three independent jobs, or select one SDK for a focused rerun:
 
 | Job | Hosted environment and generator | Artifact |
 | --- | --- | --- |
