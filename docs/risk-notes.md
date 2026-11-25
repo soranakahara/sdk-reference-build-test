@@ -18,9 +18,13 @@ CocoaPods-Core, Doclava, embedded Guava, or Doxygen/GD.
 | Doxygen | Ubuntu official apt repositories | Disposable Ubuntu package directories |
 | Checkout / artifact actions | GitHub, pinned commits | Runner action directory |
 
-The jobs use public input, `contents: read`, no application secrets, no persistent
-checkout credentials, and no shared cache. Local installations, trust changes,
-deployment, schedules, notifications, and upstream changes are not authorized.
+Generation jobs use public input and `contents: read`. The publication job alone
+requests `contents: write` and `actions: read`, using only this repository's
+`GITHUB_TOKEN` with preinstalled Git, gh, and jq. Checkout credentials are not
+persisted, and no custom secrets or shared caches are used. The publication
+script authenticates only to the fixed public GitHub repository and pushes only
+the generated branch. Local installations, trust changes, site deployment,
+schedules, notifications, and upstream changes are not authorized.
 
 ## Build adjustments and limits
 
@@ -36,6 +40,12 @@ Tracked SDK files are checked for changes after generation.
 Source SHAs and major tool versions go to CI logs. Before upload, each job checks
 its index and representative API pages with `test -s`. The workflow does not
 perform a full dependency audit or general link/asset/anchor validation.
+
+After all three generation jobs succeed, publication downloads their artifacts
+from the same run, validates representative pages/assets and actual SDK commits,
+and commits the complete snapshot once. It preserves generated-branch history
+with a normal push. Default-branch, concurrency, and stale-run checks protect
+against unintended or out-of-order publication; see the README for the contract.
 
 Known issues include the old Ruby/gem graph, Gradle 7.6, Guava r06 embedded in
 Doclava ([GHSA-5mg8-w23w-74h3](https://github.com/advisories/GHSA-5mg8-w23w-74h3)),
