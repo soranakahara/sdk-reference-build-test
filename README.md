@@ -122,16 +122,12 @@ Before a separately authorized first deployment:
 3. Inspect the public `generated` snapshot and its provenance, and record its
    full 40-character commit SHA. From **Actions > Publish SDK references to
    Pages > Run workflow**, select `main` and enter that SHA as `snapshot_sha`.
-   Branch names, tags, and abbreviated SHAs are not accepted.
 
-Only manual runs from this repository's `main` can proceed. Preparation fetches
-only the public `generated` branch, requires the selected commit to belong to
-its history, and uses that exact commit even if the branch later advances. It
-checks the root layout, provenance, SDK entry pages, representative APIs and
-CSS/JS assets. Git metadata, hidden entries, symlinks, and submodules are rejected;
-snapshot content is never sourced or executed by the workflow. The selected
-snapshot SHA appears on the site index and in the run summary. A separate job
-deploys the same run's Pages artifact with only `pages: write` and `id-token: write`.
+Only manual runs from this repository's `main` can proceed. Preparation checks
+out the supplied commit and copies `swift/`, `android/`, `unity/`, and
+`build-info.json` into the Pages artifact. The checked-out commit SHA appears
+on the site index and in the run summary. A separate job deploys the same run's
+Pages artifact with only `pages: write` and `id-token: write`.
 The generation workflow's `GITHUB_TOKEN` push to `generated` does not trigger this
 deployment; dispatch the Pages workflow explicitly.
 
@@ -147,11 +143,11 @@ integration or new analytics configuration is added.
 After deployment, check the run's environment URL, displayed snapshot SHA and
 provenance, all three SDK entry points, representative API pages, navigation,
 search, CSS/JS, fonts, and images under the project URL. Existing missing assets
-and Swift fragment limitations recorded below remain; representative file
-checks do not establish complete browser compatibility or analytics behavior.
+and Swift fragment limitations recorded below remain. Browser compatibility
+and analytics behavior have not been verified for Pages.
 To roll back, dispatch the same workflow from `main` with a previously verified
-`generated` commit SHA still in that branch's history. This replaces the Pages
-site without rewriting `generated` or rebuilding the SDKs.
+`generated` commit SHA. This replaces the Pages site without rewriting
+`generated` or rebuilding the SDKs.
 
 Known dependency issues are accepted for this bounded hosted-runner experiment;
 they are not fixed here. See [risk notes](docs/risk-notes.md) and the

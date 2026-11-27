@@ -51,10 +51,9 @@ and commits the complete snapshot once. It preserves generated-branch history
 with a normal push. Default-branch, concurrency, and stale-run checks protect
 against unintended or out-of-order publication; see the README for the contract.
 
-The Pages workflow takes a full commit SHA from `generated` history, validates
-the snapshot and provenance, and uploads only static site content. It rejects
-hidden entries, symlinks, and submodules. Only the Pages copy of the known
-site-root `/en/` navigation links is adjusted to the public developer site;
+The Pages workflow checks out the supplied commit and copies `swift/`, `android/`,
+`unity/`, and `build-info.json` into the Pages artifact. Only the Pages copy of
+the known site-root `/en/` navigation links is adjusted to the public developer site;
 upstream analytics tags and other output limitations remain. No SDK build,
 dependency installation, Pages configuration change, or deployment has been
 performed to validate this workflow definition. See the README for manual
