@@ -2,6 +2,11 @@ name: Build SDK references
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: 'Also publish the generated references to GitHub Pages'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -153,9 +158,12 @@ jobs:
     if: github.server_url == 'https://github.com' && github.repository == 'soranakahara/sdk-reference-build-test' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      pages_ready: ${{ steps.snapshot.outputs.ready }}
     permissions:
       contents: write
       actions: read
+      pages: read
     env:
       GH_HOST: github.com
       GH_TOKEN: ${{ github.token }}
@@ -173,6 +181,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Publish complete snapshot
+        id: snapshot
         run: |
           set -euo pipefail
           repository_url="https://github.com/soranakahara/sdk-reference-build-test"
@@ -234,8 +243,57 @@ jobs:
           git -C "$publication" add -- swift android unity build-info.json
           if git -C "$publication" diff --cached --quiet; then
             echo 'Published snapshot and provenance are unchanged.'
-            exit 0
+          else
+            git -C "$publication" -c commit.gpgsign=false commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
+            git -C "$publication" log -1 --format='%H%n%an <%ae>%n%cn <%ce>%n%B'
+            git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
           fi
-          git -C "$publication" -c commit.gpgsign=false commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
-          git -C "$publication" log -1 --format='%H%n%an <%ae>%n%cn <%ce>%n%B'
-          git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: Read Pages configuration
+        if: inputs.deploy_pages && steps.snapshot.outputs.ready == 'true'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        with:
+          enablement: 'false'
+      - name: Prepare Pages content
+        if: inputs.deploy_pages && steps.snapshot.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -R "$RUNNER_TEMP/reference-snapshot/." _site/
+          # Upstream navigation targets the developer site, outside this Pages project.
+          find _site/swift _site/android -type f -name '*.html' \
+            -exec sed -i 's|href="/en/"|href="https://developers.line.biz/en/"|g' {} +
+          cat > _site/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>SDK reference snapshots</title>
+          <h1>SDK reference snapshots</h1>
+          <ul><li><a href="swift/">Swift</a></li><li><a href="android/">Android</a></li>
+          <li><a href="unity/">Unity</a></li></ul>
+          <p>Generating source: <code>$GITHUB_SHA</code></p>
+          <p><a href="build-info.json">Build provenance</a></p>
+          </html>
+          EOF
+      - name: Upload Pages artifact
+        if: inputs.deploy_pages && steps.snapshot.outputs.ready == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: publish
+    if: inputs.deploy_pages && needs.publish.outputs.pages_ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy generated references
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

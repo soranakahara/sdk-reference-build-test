@@ -65,7 +65,7 @@ After the workflow change is merged, dispatch it from `main`:
 gh workflow run references.yml --repo soranakahara/sdk-reference-build-test --ref main
 ```
 
-Check all four jobs, including the publication log. Then clone the output into
+Check the generation and publication logs. Then clone the output into
 a new directory and check that provenance names the expected source commit/run:
 
 ```sh
@@ -82,8 +82,9 @@ rewriting history.
 Only manual runs from this repository's `main` branch can publish. Generation
 jobs retain `contents: read`; only publication gets `contents: write` and
 `actions: read`, using the repository's `GITHUB_TOKEN` and preinstalled tools.
-The generation workflow uses pinned action commits, no persistent checkout credentials,
-no shared cache, no custom secrets, and no deployments, notifications, or cron.
+The workflow uses pinned action commits, no persistent checkout credentials,
+no shared cache, no custom secrets, notifications, or cron. Pages deployment is
+optional and disabled by default.
 
 Runs on the same source ref are serialized without canceling the active run.
 GitHub can replace pending runs; the queue is not FIFO. Publication skips if
@@ -104,50 +105,41 @@ publication has not yet been exercised.
 
 ## Optional manual GitHub Pages publication
 
-[Publish SDK references to Pages](.github/workflows/pages.yml) deploys an existing
-`generated` snapshot without rebuilding the SDKs. It follows the official Pages
-Actions used by [this public SDK workflow](https://github.com/line/line-bot-sdk-nodejs/blob/ba423958cffef5356ee1a859d2006e1c89fbb015/.github/workflows/deploy-doc.yml).
-This is a workflow definition only: Pages settings have not been changed, and
-the workflow has not been run or deployed.
+[Build SDK references](.github/workflows/references.yml) can also deploy the same
+run's generated HTML to Pages. The `deploy_pages` input defaults to **false**.
+When enabled, publication reuses the three SDK outputs and `build-info.json`
+already collected for `generated`; it does not fetch the branch or download the
+SDK artifacts again. The official Pages Actions follow
+[this public SDK workflow](https://github.com/line/line-bot-sdk-nodejs/blob/ba423958cffef5356ee1a859d2006e1c89fbb015/.github/workflows/deploy-doc.yml).
 
 Before a separately authorized first deployment:
 
-1. Merge [the generated-branch prerequisite, PR #1](https://github.com/soranakahara/sdk-reference-build-test/pull/1),
-   then merge the Pages workflow into `main`. Run **Build SDK references**
-   successfully so that `generated` contains all three SDKs and `build-info.json`.
+1. Merge [PR #1](https://github.com/soranakahara/sdk-reference-build-test/pull/1),
+   then merge this Pages addition into `main`.
 2. In **Settings > Pages**, select **GitHub Actions** as the Source. Configure
    the `github-pages` environment to allow deployments from `main`, with any
-   required reviewers. The workflow reads existing settings with `pages: read`
-   and explicitly disables automatic Pages enablement.
-3. Inspect the public `generated` snapshot and its provenance, and record its
-   full 40-character commit SHA. From **Actions > Publish SDK references to
-   Pages > Run workflow**, select `main` and enter that SHA as `snapshot_sha`.
+   required reviewers. Automatic Pages enablement is disabled.
+3. From **Actions > Build SDK references > Run workflow**, select `main` and
+   enable `deploy_pages`. Leave it off to generate and save references only.
 
-Only manual runs from this repository's `main` can proceed. Preparation checks
-out the supplied commit and copies `swift/`, `android/`, `unity/`, and
-`build-info.json` into the Pages artifact. The checked-out commit SHA appears
-on the site index and in the run summary. A separate job deploys the same run's
-Pages artifact with only `pages: write` and `id-token: write`.
-The generation workflow's `GITHUB_TOKEN` push to `generated` does not trigger this
-deployment; dispatch the Pages workflow explicitly.
+Pages configuration is read only when the option is enabled and publication
+has completed normally. If publication skips an old source commit or run,
+Pages is skipped too. An unchanged, successful publication retry can still
+proceed to Pages. The deployment job uses `pages: write` and `id-token: write`
+and deploys the artifact uploaded by the publication job in the same run.
 
 The expected entry point is <https://soranakahara.github.io/sdk-reference-build-test/>,
-with `swift/`, `android/`, and `unity/` links and the original `build-info.json`.
-Only the Pages copy of Swift and Android HTML has `href="/en/"` changed to
-`https://developers.line.biz/en/`, so those navigation links leave the project
-site correctly. The Swift logo still links to the existing public SDK reference.
-The `generated` branch and SDK sources are untouched. Existing upstream analytics
-tags, including the old Universal Analytics tag, remain in the HTML; no GA4
-integration or new analytics configuration is added.
+with `swift/`, `android/`, and `unity/` links, the generating source commit, and
+`build-info.json`. Only the Pages copy of Swift and Android HTML has
+`href="/en/"` changed to `https://developers.line.biz/en/`. The Swift logo keeps
+its existing public SDK reference link. SDK sources and `generated` output are
+unchanged. Existing analytics tags remain; no GA4 configuration is added.
 
-After deployment, check the run's environment URL, displayed snapshot SHA and
-provenance, all three SDK entry points, representative API pages, navigation,
-search, CSS/JS, fonts, and images under the project URL. Existing missing assets
-and Swift fragment limitations recorded below remain. Browser compatibility
-and analytics behavior have not been verified for Pages.
-To roll back, dispatch the same workflow from `main` with a previously verified
-`generated` commit SHA. This replaces the Pages site without rewriting
-`generated` or rebuilding the SDKs.
+After deployment, check the environment URL, source commit and provenance,
+SDK entry points, navigation, search, and assets under the project URL.
+Existing asset and Swift fragment limitations remain; browser compatibility
+and analytics behavior have not been verified for Pages. The workflow has not
+been run, Pages settings have not been changed, and no deployment was performed.
 
 Known dependency issues are accepted for this bounded hosted-runner experiment;
 they are not fixed here. See [risk notes](docs/risk-notes.md) and the

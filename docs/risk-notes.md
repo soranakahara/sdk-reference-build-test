@@ -23,10 +23,10 @@ requests `contents: write` and `actions: read`, using only this repository's
 `GITHUB_TOKEN` with preinstalled Git, gh, and jq. Checkout credentials are not
 persisted, and no custom secrets or shared caches are used. The publication
 script authenticates only to the fixed public GitHub repository and pushes only
-the generated branch. The separate manual Pages workflow reads configuration
-with `pages: read` and deploys with `pages: write` and `id-token: write` only in
-its deployment job. Its official Actions are pinned to commits; automatic Pages
-enablement is disabled. Adding this definition does not authorize running it or
+the generated branch. Publication also has `pages: read` for the optional
+`deploy_pages` input, which defaults to false. Only the deployment job gets
+`pages: write` and `id-token: write`. Pages Actions are pinned to commits and
+automatic enablement is disabled. Adding this definition does not authorize running it or
 changing Pages settings. Local installations, trust changes, actual deployment,
 schedules, notifications, and upstream changes require separate authorization.
 
@@ -51,13 +51,13 @@ and commits the complete snapshot once. It preserves generated-branch history
 with a normal push. Default-branch, concurrency, and stale-run checks protect
 against unintended or out-of-order publication; see the README for the contract.
 
-The Pages workflow checks out the supplied commit and copies `swift/`, `android/`,
-`unity/`, and `build-info.json` into the Pages artifact. Only the Pages copy of
-the known site-root `/en/` navigation links is adjusted to the public developer site;
-upstream analytics tags and other output limitations remain. No SDK build,
-dependency installation, Pages configuration change, or deployment has been
-performed to validate this workflow definition. See the README for manual
-prerequisites, browser checks, and rollback by snapshot SHA.
+Optional Pages publication copies the output already collected in the same job
+and uploads it for the deployment job. Existing publication skips also skip
+Pages; normal unchanged retries may deploy. Only the Pages copy of the known
+site-root `/en/` links is adjusted to the public developer site. Upstream
+analytics tags and other output limitations remain. No SDK build, dependency
+installation, Pages configuration change, or deployment has been performed to
+validate this addition. See the README for prerequisites and manual execution.
 
 Known issues include the old Ruby/gem graph, Gradle 7.6, Guava r06 embedded in
 Doclava ([GHSA-5mg8-w23w-74h3](https://github.com/advisories/GHSA-5mg8-w23w-74h3)),
