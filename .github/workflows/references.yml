@@ -1,10 +1,14 @@
-name: Build SDK references
+name: Build and commit SDK references
 
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: sdk-references-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   swift:
@@ -131,3 +135,48 @@ jobs:
           path: sdk/unity/html/
           retention-days: 7
           if-no-files-found: error
+
+  commit:
+    needs: [swift, android, unity]
+    if: github.server_url == 'https://github.com' && github.repository == 'soranakahara/sdk-reference-build-test' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_HOST: github.com
+      GH_TOKEN: ${{ github.token }}
+      GIT_AUTHOR_NAME: soranakahara
+      GIT_AUTHOR_EMAIL: 40860127+soranakahara@users.noreply.github.com
+      GIT_COMMITTER_NAME: soranakahara
+      GIT_COMMITTER_EMAIL: 40860127+soranakahara@users.noreply.github.com
+    steps:
+      - name: Commit generated references
+        run: |
+          set -euo pipefail
+          remote_url="https://github.com/soranakahara/sdk-reference-build-test.git"
+          snapshot="$RUNNER_TEMP/reference-snapshot"
+          publication="$RUNNER_TEMP/generated-repository"
+          mkdir -p "$snapshot"
+          for sdk in swift android unity; do
+            if ! gh run download "$GITHUB_RUN_ID" --repo soranakahara/sdk-reference-build-test --name "$sdk-reference" --dir "$snapshot/$sdk" > "$RUNNER_TEMP/artifact-download.log" 2>&1; then
+              echo "::error::Could not download $sdk-reference from soranakahara/sdk-reference-build-test run $GITHUB_RUN_ID."
+              exit 1
+            fi
+          done
+          git init --initial-branch=generated "$publication"
+          if git ls-remote --exit-code "$remote_url" refs/heads/generated > /dev/null; then
+            git -C "$publication" fetch --no-tags --depth=1 "$remote_url" refs/heads/generated
+            git -C "$publication" checkout --detach FETCH_HEAD
+          else
+            remote_status=$?
+            [[ "$remote_status" == 2 ]] || exit "$remote_status"
+          fi
+          git -C "$publication" rm -r --quiet --ignore-unmatch -- swift android unity build-info.json
+          cp -R "$snapshot/swift" "$snapshot/android" "$snapshot/unity" "$publication/"
+          git -C "$publication" add -- swift android unity
+          if ! git -C "$publication" diff --cached --quiet; then
+            git -C "$publication" commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
+            git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
+          fi
