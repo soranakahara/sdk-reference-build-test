@@ -1,4 +1,4 @@
-name: Build SDK references
+name: Build and commit SDK references
 
 on:
   workflow_dispatch:
@@ -18,8 +18,6 @@ jobs:
       BUNDLE_GEMFILE: ${{ github.workspace }}/sdk/swift/Gemfile
       BUNDLE_FROZEN: 'true'
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
-    outputs:
-      sdk_sha: ${{ steps.generate.outputs.sdk_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -32,7 +30,6 @@ jobs:
           bundler: '4.0.10'
           bundler-cache: false
       - name: Generate Swift reference
-        id: generate
         working-directory: sdk/swift
         run: |
           git rev-parse HEAD
@@ -61,7 +58,6 @@ jobs:
           test -s docs/public/Structs/AccessToken.html
           test -s docs/public/search.json
           git diff --exit-code
-          echo "sdk_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: swift-reference
@@ -72,8 +68,6 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    outputs:
-      sdk_sha: ${{ steps.generate.outputs.sdk_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -94,7 +88,6 @@ jobs:
           echo "JAVA_HOME=$tools/jdk" >> "$GITHUB_ENV"
           echo "$tools/jdk/bin" >> "$GITHUB_PATH"
       - name: Generate Android reference
-        id: generate
         working-directory: sdk/android
         run: |
           git rev-parse HEAD
@@ -106,7 +99,6 @@ jobs:
           test -s line-sdk/build/docs/javadoc_public/reference/com/linecorp/linesdk/api/LineApiClient.html
           test -s line-sdk/build/docs/javadoc_public/reference/com/linecorp/linesdk/widget/LoginButton.html
           git diff --exit-code
-          echo "sdk_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-reference
@@ -117,8 +109,6 @@ jobs:
   unity:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    outputs:
-      sdk_sha: ${{ steps.generate.outputs.sdk_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -130,7 +120,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends doxygen
       - name: Generate Unity reference
-        id: generate
         working-directory: sdk/unity
         run: |
           git rev-parse HEAD
@@ -140,7 +129,6 @@ jobs:
           test -s html/class_line_1_1_line_s_d_k_1_1_line_s_d_k.html
           test -s html/class_line_1_1_line_s_d_k_1_1_access_token.html
           git diff --exit-code
-          echo "sdk_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: unity-reference
@@ -148,7 +136,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  publish:
+  commit:
     needs: [swift, android, unity]
     if: github.server_url == 'https://github.com' && github.repository == 'soranakahara/sdk-reference-build-test' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -159,83 +147,36 @@ jobs:
     env:
       GH_HOST: github.com
       GH_TOKEN: ${{ github.token }}
-      swift_sha: ${{ needs.swift.outputs.sdk_sha }}
-      android_sha: ${{ needs.android.outputs.sdk_sha }}
-      unity_sha: ${{ needs.unity.outputs.sdk_sha }}
       GIT_AUTHOR_NAME: soranakahara
       GIT_AUTHOR_EMAIL: 40860127+soranakahara@users.noreply.github.com
       GIT_COMMITTER_NAME: soranakahara
       GIT_COMMITTER_EMAIL: 40860127+soranakahara@users.noreply.github.com
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: soranakahara/sdk-reference-build-test
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Publish complete snapshot
+      - name: Commit generated references
         run: |
           set -euo pipefail
-          repository_url="https://github.com/soranakahara/sdk-reference-build-test"
-          remote_url="$repository_url.git"
-          run_prefix="$repository_url/actions/runs/"
+          remote_url="https://github.com/soranakahara/sdk-reference-build-test.git"
           snapshot="$RUNNER_TEMP/reference-snapshot"
           publication="$RUNNER_TEMP/generated-repository"
-          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 1
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 1
-          main_ref="$(git ls-remote --exit-code "$remote_url" refs/heads/main)"
-          if [[ "$main_ref" != "$GITHUB_SHA"$'\trefs/heads/main' ]]; then
-            echo 'Publication skipped: source commit is no longer main HEAD.'
-            exit 0
-          fi
-
           mkdir -p "$snapshot"
           for sdk in swift android unity; do
-            sha_variable="${sdk}_sha"
-            sdk_sha="${!sha_variable}"
-            [[ "$sdk_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
-            [[ "$(git ls-tree "$GITHUB_SHA" "sdk/$sdk")" == "160000 commit $sdk_sha"$'\t'"sdk/$sdk" ]] || exit 1
             if ! gh run download "$GITHUB_RUN_ID" --repo soranakahara/sdk-reference-build-test --name "$sdk-reference" --dir "$snapshot/$sdk" > "$RUNNER_TEMP/artifact-download.log" 2>&1; then
               echo "::error::Could not download $sdk-reference from soranakahara/sdk-reference-build-test run $GITHUB_RUN_ID."
               exit 1
             fi
-            test -s "$snapshot/$sdk/index.html"
           done
-          for file in \
-            swift/Classes/LoginManager.html swift/Structs/AccessToken.html swift/search.json swift/css/jazzy.css swift/js/jazzy.js \
-            android/reference/com/linecorp/linesdk/api/LineApiClient.html android/reference/com/linecorp/linesdk/widget/LoginButton.html android/assets/doclava-developer-docs.css android/assets/doclava-developer-docs.js \
-            unity/class_line_1_1_line_s_d_k_1_1_line_s_d_k.html unity/class_line_1_1_line_s_d_k_1_1_access_token.html unity/doxygen.css unity/navtree.js; do
-            test -s "$snapshot/$file"
-          done
-          jq -n --arg source "$GITHUB_SHA" --arg run "$run_prefix$GITHUB_RUN_ID" --argjson number "$GITHUB_RUN_NUMBER" \
-            '{source_repository:"https://github.com/soranakahara/sdk-reference-build-test", source_commit:$source, workflow_run:$run, workflow_run_number:$number, sdks:{swift:env.swift_sha, android:env.android_sha, unity:env.unity_sha}}' > "$snapshot/build-info.json"
-
           git init --initial-branch=generated "$publication"
-          if git ls-remote --exit-code "$remote_url" refs/heads/generated > "$RUNNER_TEMP/generated-ref"; then
+          if git ls-remote --exit-code "$remote_url" refs/heads/generated > /dev/null; then
             git -C "$publication" fetch --no-tags --depth=1 "$remote_url" refs/heads/generated
-            [[ "$(git -C "$publication" ls-tree --name-only FETCH_HEAD)" == $'android\nbuild-info.json\nswift\nunity' ]] || exit 1
-            if ! previous_number="$(git -C "$publication" show FETCH_HEAD:build-info.json | jq -er 'select(.source_repository == "https://github.com/soranakahara/sdk-reference-build-test") | .workflow_run_number | select(type == "number") | select(. >= 1 and . == floor)' 2>/dev/null)"; then
-              echo '::error::Invalid previously published workflow run number.'
-              exit 1
-            fi
-            [[ "$previous_number" =~ ^[1-9][0-9]*$ ]] || exit 1
-            # Concurrency is not FIFO, and reruns retain their original run number.
-            if (( previous_number > GITHUB_RUN_NUMBER )); then
-              echo 'Publication skipped: a newer workflow run is already published.'
-              exit 0
-            fi
             git -C "$publication" checkout --detach FETCH_HEAD
           else
             remote_status=$?
             [[ "$remote_status" == 2 ]] || exit "$remote_status"
           fi
           git -C "$publication" rm -r --quiet --ignore-unmatch -- swift android unity build-info.json
-          cp -R "$snapshot/swift" "$snapshot/android" "$snapshot/unity" "$snapshot/build-info.json" "$publication/"
-          git -C "$publication" add -- swift android unity build-info.json
-          if git -C "$publication" diff --cached --quiet; then
-            echo 'Published snapshot and provenance are unchanged.'
-            exit 0
+          cp -R "$snapshot/swift" "$snapshot/android" "$snapshot/unity" "$publication/"
+          git -C "$publication" add -- swift android unity
+          if ! git -C "$publication" diff --cached --quiet; then
+            git -C "$publication" commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
+            git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
           fi
-          git -C "$publication" -c commit.gpgsign=false commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
-          git -C "$publication" log -1 --format='%H%n%an <%ae>%n%cn <%ce>%n%B'
-          git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
