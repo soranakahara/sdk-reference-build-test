@@ -1,0 +1,136 @@
+name: Publish SDK references to Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot_sha:
+        description: 'Full 40-character commit SHA from the generated branch'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.server_url == 'https://github.com' && github.repository == 'soranakahara/sdk-reference-build-test' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Read Pages configuration
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        with:
+          enablement: 'false'
+      - name: Prepare selected snapshot
+        env:
+          SNAPSHOT_SHA: ${{ inputs.snapshot_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SNAPSHOT_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          git --version
+          python3 --version
+          snapshot="$RUNNER_TEMP/pages-snapshot"
+          site="$GITHUB_WORKSPACE/_site"
+          git init --quiet "$snapshot"
+          git -C "$snapshot" fetch --quiet --no-tags --no-recurse-submodules \
+            https://github.com/soranakahara/sdk-reference-build-test.git refs/heads/generated
+          git -C "$snapshot" merge-base --is-ancestor "$SNAPSHOT_SHA" FETCH_HEAD
+          [[ "$(git -C "$snapshot" ls-tree --name-only "$SNAPSHOT_SHA")" == $'android\nbuild-info.json\nswift\nunity' ]] || exit 1
+          git -C "$snapshot" ls-tree -r "$SNAPSHOT_SHA" | awk '$1 != "100644" && $1 != "100755" { exit 1 }'
+          mkdir -p "$site"
+          git -C "$snapshot" archive "$SNAPSHOT_SHA" | tar -x -C "$site"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          site = Path(os.environ["GITHUB_WORKSPACE"]) / "_site"
+          snapshot_sha = os.environ["SNAPSHOT_SHA"]
+          repository = "https://github.com/soranakahara/sdk-reference-build-test"
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+          def is_sha(value):
+              return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+          require(all(not path.is_symlink() and not path.name.startswith(".")
+                      for path in site.rglob("*")), "Hidden entries or symlinks in snapshot")
+          for relative in (
+              "build-info.json",
+              "swift/index.html", "swift/Classes/LoginManager.html", "swift/Structs/AccessToken.html",
+              "swift/search.json", "swift/css/jazzy.css", "swift/js/jazzy.js",
+              "android/index.html", "android/reference/com/linecorp/linesdk/api/LineApiClient.html",
+              "android/reference/com/linecorp/linesdk/widget/LoginButton.html",
+              "android/assets/doclava-developer-docs.css", "android/assets/doclava-developer-docs.js",
+              "unity/index.html", "unity/class_line_1_1_line_s_d_k_1_1_line_s_d_k.html",
+              "unity/class_line_1_1_line_s_d_k_1_1_access_token.html", "unity/doxygen.css", "unity/navtree.js",
+          ):
+              path = site / relative
+              require(path.is_file() and path.stat().st_size > 0, "Missing or empty required snapshot file")
+
+          info = json.loads((site / "build-info.json").read_text())
+          require(isinstance(info, dict) and info.get("source_repository") == repository,
+                  "Unexpected source repository")
+          require(is_sha(info.get("source_commit")), "Invalid source commit")
+          run = info.get("workflow_run")
+          require(isinstance(run, str) and re.fullmatch(re.escape(repository) + r"/actions/runs/[1-9][0-9]*", run),
+                  "Invalid generating run URL")
+          number = info.get("workflow_run_number")
+          require(type(number) is int and number > 0, "Invalid generating run number")
+          sdks = info.get("sdks")
+          require(isinstance(sdks, dict) and set(sdks) == {"swift", "android", "unity"}
+                  and all(is_sha(value) for value in sdks.values()), "Invalid SDK commits")
+
+          # Upstream navigation targets the developer site, outside this Pages project.
+          for sdk in ("swift", "android"):
+              for page in (site / sdk).rglob("*.html"):
+                  content = page.read_text()
+                  updated = content.replace('href="/en/"', 'href="https://developers.line.biz/en/"')
+                  if updated != content:
+                      page.write_text(updated)
+
+          (site / "index.html").write_text(f"""<!doctype html>
+          <html lang="en">
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>SDK reference snapshots</title>
+          <h1>SDK reference snapshots</h1>
+          <ul><li><a href="swift/">Swift</a></li><li><a href="android/">Android</a></li>
+          <li><a href="unity/">Unity</a></li></ul>
+          <p>Generated snapshot: <a href="{repository}/tree/{snapshot_sha}"><code>{snapshot_sha}</code></a></p>
+          <p><a href="build-info.json">Build provenance</a> · <a href="{run}">Generating run</a></p>
+          </html>
+          """)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Generated snapshot: [`{snapshot_sha}`]({repository}/tree/{snapshot_sha})\n\n"
+                            f"Generating source: `{info['source_commit']}`\n\nGenerating run: {run}\n")
+          print(f"Prepared generated snapshot {snapshot_sha}")
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy selected snapshot
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

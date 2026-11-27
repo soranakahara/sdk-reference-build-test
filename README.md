@@ -13,7 +13,7 @@ independent generation jobs and retains these CI artifacts for **7 days**:
 | [Android](https://github.com/line/line-sdk-android) | Ubuntu 24.04, Temurin 11.0.33.1+1, Android API 33 / Build Tools 30.0.3, SDK Gradle and Doclava | `android-reference` |
 | [Unity](https://github.com/line/line-sdk-unity) | Ubuntu 24.04, Ubuntu Doxygen | `unity-reference` |
 
-The implementation is one [workflow](.github/workflows/references.yml) plus
+Generation uses one [workflow](.github/workflows/references.yml) plus
 [android-javadoc.init.gradle](scripts/android-javadoc.init.gradle), which supplies
 the compiled SDK/dependency classpath and enables failure on Javadoc errors.
 
@@ -82,7 +82,7 @@ rewriting history.
 Only manual runs from this repository's `main` branch can publish. Generation
 jobs retain `contents: read`; only publication gets `contents: write` and
 `actions: read`, using the repository's `GITHUB_TOKEN` and preinstalled tools.
-The workflow uses pinned action commits, no persistent checkout credentials,
+The generation workflow uses pinned action commits, no persistent checkout credentials,
 no shared cache, no custom secrets, and no deployments, notifications, or cron.
 
 Runs on the same source ref are serialized without canceling the active run.
@@ -102,8 +102,60 @@ The linked successful run above validates generation only. The publication
 change has been tested locally with fixtures and bare Git repositories; hosted
 publication has not yet been exercised.
 
+## Optional manual GitHub Pages publication
+
+[Publish SDK references to Pages](.github/workflows/pages.yml) deploys an existing
+`generated` snapshot without rebuilding the SDKs. It follows the official Pages
+Actions used by [this public SDK workflow](https://github.com/line/line-bot-sdk-nodejs/blob/ba423958cffef5356ee1a859d2006e1c89fbb015/.github/workflows/deploy-doc.yml).
+This is a workflow definition only: Pages settings have not been changed, and
+the workflow has not been run or deployed.
+
+Before a separately authorized first deployment:
+
+1. Merge [the generated-branch prerequisite, PR #1](https://github.com/soranakahara/sdk-reference-build-test/pull/1),
+   then merge the Pages workflow into `main`. Run **Build SDK references**
+   successfully so that `generated` contains all three SDKs and `build-info.json`.
+2. In **Settings > Pages**, select **GitHub Actions** as the Source. Configure
+   the `github-pages` environment to allow deployments from `main`, with any
+   required reviewers. The workflow reads existing settings with `pages: read`
+   and explicitly disables automatic Pages enablement.
+3. Inspect the public `generated` snapshot and its provenance, and record its
+   full 40-character commit SHA. From **Actions > Publish SDK references to
+   Pages > Run workflow**, select `main` and enter that SHA as `snapshot_sha`.
+   Branch names, tags, and abbreviated SHAs are not accepted.
+
+Only manual runs from this repository's `main` can proceed. Preparation fetches
+only the public `generated` branch, requires the selected commit to belong to
+its history, and uses that exact commit even if the branch later advances. It
+checks the root layout, provenance, SDK entry pages, representative APIs and
+CSS/JS assets. Git metadata, hidden entries, symlinks, and submodules are rejected;
+snapshot content is never sourced or executed by the workflow. The selected
+snapshot SHA appears on the site index and in the run summary. A separate job
+deploys the same run's Pages artifact with only `pages: write` and `id-token: write`.
+The generation workflow's `GITHUB_TOKEN` push to `generated` does not trigger this
+deployment; dispatch the Pages workflow explicitly.
+
+The expected entry point is <https://soranakahara.github.io/sdk-reference-build-test/>,
+with `swift/`, `android/`, and `unity/` links and the original `build-info.json`.
+Only the Pages copy of Swift and Android HTML has `href="/en/"` changed to
+`https://developers.line.biz/en/`, so those navigation links leave the project
+site correctly. The Swift logo still links to the existing public SDK reference.
+The `generated` branch and SDK sources are untouched. Existing upstream analytics
+tags, including the old Universal Analytics tag, remain in the HTML; no GA4
+integration or new analytics configuration is added.
+
+After deployment, check the run's environment URL, displayed snapshot SHA and
+provenance, all three SDK entry points, representative API pages, navigation,
+search, CSS/JS, fonts, and images under the project URL. Existing missing assets
+and Swift fragment limitations recorded below remain; representative file
+checks do not establish complete browser compatibility or analytics behavior.
+To roll back, dispatch the same workflow from `main` with a previously verified
+`generated` commit SHA still in that branch's history. This replaces the Pages
+site without rewriting `generated` or rebuilding the SDKs.
+
 Known dependency issues are accepted for this bounded hosted-runner experiment;
 they are not fixed here. See [risk notes](docs/risk-notes.md) and the
 [earlier detailed verification](docs/results-2026-11-24.md) for retained limitations.
-Local tool installation, trust changes, deployment, upstream contributions, and
-notifications are outside the authorized scope.
+Local tool installation, trust changes, workflow execution, Pages settings changes,
+actual deployment, upstream contributions, and notifications require separate
+authorization.
