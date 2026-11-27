@@ -1,4 +1,4 @@
-name: Build SDK references
+name: Build and commit SDK references
 
 on:
   workflow_dispatch:
@@ -141,8 +141,6 @@ jobs:
     if: github.server_url == 'https://github.com' && github.repository == 'soranakahara/sdk-reference-build-test' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    outputs:
-      generated_sha: ${{ steps.snapshot.outputs.generated_sha }}
     permissions:
       contents: write
       actions: read
@@ -155,7 +153,6 @@ jobs:
       GIT_COMMITTER_EMAIL: 40860127+soranakahara@users.noreply.github.com
     steps:
       - name: Commit generated references
-        id: snapshot
         run: |
           set -euo pipefail
           remote_url="https://github.com/soranakahara/sdk-reference-build-test.git"
@@ -183,40 +180,3 @@ jobs:
             git -C "$publication" commit --quiet --no-gpg-sign -m "Generate SDK references from $GITHUB_SHA"
             git -C "$publication" -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push "$remote_url" HEAD:refs/heads/generated
           fi
-          generated_sha="$(git -C "$publication" rev-parse HEAD)"
-          echo "generated_sha=$generated_sha" >> "$GITHUB_OUTPUT"
-
-  pages:
-    needs: commit
-    if: needs.commit.outputs.generated_sha != ''
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: soranakahara/sdk-reference-build-test
-          ref: ${{ needs.commit.outputs.generated_sha }}
-          persist-credentials: false
-      - name: Read Pages configuration
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-        with:
-          enablement: 'false'
-      - name: Adjust developer site navigation
-        run: |
-          # Upstream navigation targets the developer site, outside this Pages project.
-          find swift android -type f -name '*.html' \
-            -exec sed -i 's|href="/en/"|href="https://developers.line.biz/en/"|g' {} +
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: .
-      - name: Deploy generated references
-        id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
